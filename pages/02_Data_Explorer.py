@@ -9,7 +9,7 @@ st.write(
     "and lets you explore it."
 )
 
-data_path = Path("data") / "example_data.csv"
+data_path = Path("data") / "example.csv"
 
 try:
     df = pd.read_csv(data_path)
