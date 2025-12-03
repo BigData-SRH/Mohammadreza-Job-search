@@ -58,12 +58,24 @@ Inside the project folder:
 python -m venv .venv
 ```
 
+Fedora Linux:
+
+```bash
+python3 -m venv pyarrow-env
+```
+
 ### Activate the virtual environment
 
 macOS / Linux:
 
 ```bash
 source .venv/bin/activate
+```
+
+Fedora Linux:
+
+```bash
+source pyarrow-env/bin/activate
 ```
 
 Windows (PowerShell):
