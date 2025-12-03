@@ -130,6 +130,16 @@ Use the sidebar navigation to switch between:
 
 ---
 
+## Database
+
+https://www.kaggle.com/datasets/pratyushpuri/global-ai-job-market-trend-2025
+
+License: CC0: Public Domain
+
+Download and unzip in Data/
+
+---
+
 ## 6. Project Structure
 
 ```text
@@ -266,4 +276,4 @@ This ensures consistency across all student groups.
 
 ## 12. License
 
-MIT License (or replace with your own license)
+GPLv3-or-later
