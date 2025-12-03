@@ -36,8 +36,8 @@ pip --version
 ### Option A — Clone the repository
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/streamlit-app-template.git
-cd streamlit-app-template
+git clone https://github.com/BigData-SRH/Mohammadreza-Job-search.git
+cd Mohammadreza-Job-search
 ```
 
 ### Option B — Download ZIP
