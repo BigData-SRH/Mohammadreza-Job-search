@@ -1,7 +1,68 @@
-# pages/3_👤_About.py
+# pages/3_About.py
 import streamlit as st
 
 st.set_page_config(page_title="About", page_icon="👤", layout="wide")
+
+# Theme state
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'  # Default to light theme
+
+# Theme toggle in the sidebar
+with st.sidebar:
+    st.markdown("### ⚙️ Display Settings")
+    theme_col1, theme_col2 = st.columns(2)
+    with theme_col1:
+        if st.button("🌙 Dark", use_container_width=True, 
+                    disabled=(st.session_state.theme == 'dark')):
+            st.session_state.theme = 'dark'
+            st.rerun()
+    with theme_col2:
+        if st.button("☀️ Light", use_container_width=True,
+                    disabled=(st.session_state.theme == 'light')):
+            st.session_state.theme = 'light'
+            st.rerun()
+    st.markdown("---")
+
+# Unified theme application function
+def apply_theme():
+    if st.session_state.theme == 'dark':
+        st.markdown("""
+        <style>
+        .stApp {
+            background-color: #0e1117;
+            color: #fafafa;
+        }
+        .main {
+            background-color: #0e1117;
+        }
+        h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown {
+            color: #fafafa !important;
+        }
+        .stTextInput label, .stSelectbox label, .stMultiSelect label, .stNumberInput label {
+            color: #fafafa !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <style>
+        .stApp {
+            background-color: #ffffff;
+            color: #31333F;
+        }
+        .main {
+            background-color: #ffffff;
+        }
+        h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown {
+            color: #31333F !important;
+        }
+        .stTextInput label, .stSelectbox label, .stMultiSelect label, .stNumberInput label {
+            color: #31333F !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+apply_theme()
 
 st.title("👤 About")
 
@@ -9,17 +70,20 @@ st.title("👤 About")
 col1, col2 = st.columns([1, 3])
 
 with col1:
-    st.image("https://via.placeholder.com/200", caption="Profile Picture")
+    st.image(
+        "https://avatars.githubusercontent.com/u/84578249",
+        caption="Profile Picture",
+        use_container_width=True  # Updated to use_container_width
+    )
 
 with col2:
     st.markdown("## MOHAMMADREZA HENDIANI")
     st.markdown("**Bachelor in Computer Engineering | Master-Student in Informatik**")
-    st.markdown("📍 Leipzig, Germany (Ich bin berechtigt, in Deutschland zu arbeiten)")
 
 st.divider()
 
 # Contact information
-st.subheader("📬 Contact Information")
+st.subheader("📬 Contact Information") 
 
 contact_col1, contact_col2 = st.columns(2)
 
