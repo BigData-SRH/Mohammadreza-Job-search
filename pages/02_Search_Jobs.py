@@ -1,171 +1,255 @@
-# pages/1_🔍_Search_Jobs.py
+# pages/02_Search_Jobs.py
 import streamlit as st
 import pandas as pd
 import numpy as np
+import requests
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Search Jobs", page_icon="🔍", layout="wide")
+
+# Initialize session state
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'  # Default to light theme
+if 'default_currency' not in st.session_state:
+    st.session_state.default_currency = 'USD'
+if 'currency_rates' not in st.session_state:
+    st.session_state.currency_rates = {}
+if 'last_rate_update' not in st.session_state:
+    st.session_state.last_rate_update = None
+
+# Unified theme application
+def apply_theme():
+    if st.session_state.theme == 'dark':
+        st.markdown("""
+        <style>
+        .stApp {
+            background-color: #0e1117;
+            color: #fafafa;
+        }
+        .main {
+            background-color: #0e1117;
+        }
+        h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown {
+            color: #fafafa !important;
+        }
+        .stTextInput label, .stSelectbox label, .stMultiSelect label, .stNumberInput label {
+            color: #fafafa !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <style>
+        .stApp {
+            background-color: #ffffff;
+            color: #31333F;
+        }
+        .main {
+            background-color: #ffffff;
+        }
+        h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown {
+            color: #31333F !important;
+        }
+        .stTextInput label, .stSelectbox label, .stMultiSelect label, .stNumberInput label {
+            color: #31333F !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+apply_theme()
+
+# Fetch currency rates
+@st.cache_data(ttl=3600)
+def fetch_currency_rates():
+    try:
+        response = requests.get('https://api.exchangerate-api.com/v4/latest/USD', timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data['rates']
+        else:
+            raise Exception("API request failed")
+    except:
+        return {
+            'USD': 1.0,
+            'EUR': 0.92,
+            'GBP': 0.79,
+            'CAD': 1.39,
+            'AUD': 1.54,
+            'INR': 83.12,
+            'JPY': 149.50
+        }
+
+if not st.session_state.currency_rates or not st.session_state.last_rate_update or \
+   (datetime.now() - st.session_state.last_rate_update) > timedelta(hours=1):
+    st.session_state.currency_rates = fetch_currency_rates()
+    st.session_state.last_rate_update = datetime.now()
+
+CURRENCY_RATES = st.session_state.currency_rates
+
+def convert_to_target_currency(amount_usd, target_currency='USD'):
+    if target_currency == 'USD':
+        return amount_usd
+    return amount_usd * CURRENCY_RATES.get(target_currency, 1.0)
+
+# Load real data from CSV
+@st.cache_data
+def load_data():
+    try:
+        df = pd.read_csv('data/ai_job_dataset.csv')
+        
+        # Convert salary_usd to numeric
+        df['salary_usd'] = pd.to_numeric(df['salary_usd'], errors='coerce')
+        
+        # Parse dates
+        df['posting_date'] = pd.to_datetime(df['posting_date'], errors='coerce')
+        
+        # Handle missing values
+        df = df.dropna(subset=['salary_usd', 'posting_date'])
+        
+        return df
+    except FileNotFoundError:
+        st.error("Dataset file not found at data/ai_job_dataset.csv")
+        return None
+
+df = load_data()
+
+if df is None:
+    st.stop()
+
+# Theme toggle in the sidebar
+with st.sidebar:
+    st.markdown("### ⚙️ Display Settings")
+    theme_col1, theme_col2 = st.columns(2)
+    with theme_col1:
+        if st.button("🌙 Dark", use_container_width=True, 
+                    disabled=(st.session_state.theme == 'dark')):
+            st.session_state.theme = 'dark'
+            st.rerun()
+    with theme_col2:
+        if st.button("☀️ Light", use_container_width=True,
+                    disabled=(st.session_state.theme == 'light')):
+            st.session_state.theme = 'light'
+            st.rerun()
+    st.markdown("---")
 
 st.title("🔍 Search & Filter Jobs")
 st.markdown("Find AI/ML jobs that match your criteria")
 
-# Currency conversion rates (to USD)
-CURRENCY_RATES = {
-    'USD': 1.0,
-    'EUR': 1.09,
-    'GBP': 1.27,
-    'CAD': 0.72,
-    'AUD': 0.65,
-    'INR': 0.012,
-    'JPY': 0.0067
-}
-
-# Load data
-@st.cache_data
-def load_data():
-    np.random.seed(42)
-    
-    countries_currencies = {
-        'USA': 'USD',
-        'UK': 'GBP', 
-        'Germany': 'EUR',
-        'Canada': 'CAD',
-        'Australia': 'AUD',
-        'India': 'INR',
-        'Japan': 'JPY'
-    }
-    
-    locations = list(countries_currencies.keys())
-    n_samples = 2000
-    
-    # Generate experience levels
-    experience_levels = np.random.choice(['Junior', 'Mid-Level', 'Senior', 'Lead'], n_samples, p=[0.25, 0.35, 0.30, 0.10])
-    
-    location_list = np.random.choice(locations, n_samples)
-    currencies = [countries_currencies[loc] for loc in location_list]
-    
-    # Salary multipliers by experience
-    exp_multipliers = {
-        'Junior': (0.6, 0.8),
-        'Mid-Level': (0.8, 1.1),
-        'Senior': (1.2, 1.6),
-        'Lead': (1.7, 2.2)
-    }
-    
-    base_salary_ranges = {
-        'USD': (80000, 130000),
-        'GBP': (55000, 90000),
-        'EUR': (60000, 100000),
-        'CAD': (90000, 140000),
-        'AUD': (100000, 160000),
-        'INR': (1200000, 2500000),
-        'JPY': (8000000, 13000000)
-    }
-    
-    salaries_local = []
-    salaries_usd = []
-    for loc, curr, exp in zip(location_list, currencies, experience_levels):
-        min_base, max_base = base_salary_ranges[curr]
-        mult_min, mult_max = exp_multipliers[exp]
-        
-        min_sal = int(min_base * mult_min)
-        max_sal = int(max_base * mult_max)
-        
-        local_salary = np.random.randint(min_sal, max_sal)
-        salaries_local.append(local_salary)
-        salaries_usd.append(local_salary * CURRENCY_RATES[curr])
-    
-    # Generate remote ratio with more realistic distribution
-    remote_ratios = []
-    for _ in range(n_samples):
-        rand = np.random.random()
-        if rand < 0.3:  # 30% fully on-site
-            remote_ratios.append(0)
-        elif rand < 0.5:  # 20% fully remote
-            remote_ratios.append(100)
-        elif rand < 0.7:  # 20% at 50% (hybrid)
-            remote_ratios.append(50)
-        else:  # 30% other hybrid values
-            remote_ratios.append(np.random.randint(20, 80))
-    
-    # Determine work type: only 50% is hybrid
-    work_types = []
-    for ratio in remote_ratios:
-        if ratio == 0:
-            work_types.append('On-site')
-        elif ratio == 100:
-            work_types.append('Remote')
-        elif ratio == 50:
-            work_types.append('Hybrid')
-        else:
-            if ratio < 50:
-                work_types.append('On-site')
-            else:
-                work_types.append('Remote')
-    
-    data = pd.DataFrame({
-        'job_title': np.random.choice(['Data Scientist', 'ML Engineer', 'AI Researcher', 'Data Analyst',
-                                       'Deep Learning Engineer', 'NLP Engineer', 'Computer Vision Engineer'], n_samples),
-        'experience_level': experience_levels,
-        'location': location_list,
-        'currency': currencies,
-        'salary_local': salaries_local,
-        'salary_usd': salaries_usd,
-        'remote_ratio': remote_ratios,
-        'work_type': work_types,
-        'skills': [', '.join(np.random.choice(['Python', 'TensorFlow', 'PyTorch', 'SQL', 'AWS', 
-                    'Docker', 'Kubernetes', 'Scikit-learn', 'R', 'Spark'], 
-                    size=np.random.randint(2, 6), replace=False)) for _ in range(n_samples)],
-        'posted_date': pd.date_range(start='2024-10-01', periods=n_samples, freq='3H'),
-        'company': np.random.choice(['Google', 'Amazon', 'Microsoft', 'Meta', 'Apple', 'IBM', 
-                                     'NVIDIA', 'Tesla', 'OpenAI', 'DeepMind'], n_samples)
-    })
-    
-    return data
-
-df = load_data()
+target_currency = st.session_state.default_currency
+df['salary_target'] = df['salary_usd'].apply(lambda x: convert_to_target_currency(x, target_currency))
 
 # Sidebar filters
 st.sidebar.header("🔧 Filters")
 
-# Experience Level
-experience_options = st.sidebar.multiselect(
-    "⭐ Experience Level",
-    options=sorted(df['experience_level'].unique()),
-    default=df['experience_level'].unique()
-)
+# Mapping dictionaries
+experience_level_map = {
+    'EN': 'Entry',
+    'MI': 'Mid',
+    'SE': 'Senior',
+    'CT': 'Contract',
+    'FL': 'Freelance',
+    'EX': 'Executive',
+    # Add more if needed
+}
+employment_type_map = {
+    'FT': 'Full-Time',
+    'PT': 'Part-Time',
+    'CT': 'Contract',
+    'FL': 'Freelance',
+    # Add more if needed
+}
+company_size_map = {
+    'S': 'Small',
+    'M': 'Medium',
+    'L': 'Large',
+    'E': 'Enterprise',
+    # Add more if needed
+}
 
-# Work Type
-work_type_options = st.sidebar.multiselect(
-    "🏢 Work Type",
-    options=sorted(df['work_type'].unique()),
-    default=df['work_type'].unique()
+# Experience Level
+exp_all_options = sorted(df['experience_level'].unique())
+exp_full_options = [experience_level_map.get(opt, opt) for opt in exp_all_options]
+experience_selection = st.sidebar.multiselect(
+    "⭐ Career Level",
+    options=exp_full_options,
+    default=exp_full_options,
+    key='exp_filter'
 )
+experience_options = [k for k, v in experience_level_map.items() if v in experience_selection]
+if not experience_options:
+    experience_options = exp_all_options
+    st.sidebar.warning("At least one option must be selected")
+
+# Employment Type
+employment_all_options = sorted(df['employment_type'].unique())
+employment_full_options = [employment_type_map.get(opt, opt) for opt in employment_all_options]
+employment_selection = st.sidebar.multiselect(
+    "💼 Job Type",
+    options=employment_full_options,
+    default=employment_full_options,
+    key='employment_filter'
+)
+employment_options = [k for k, v in employment_type_map.items() if v in employment_selection]
+if not employment_options:
+    employment_options = employment_all_options
+    st.sidebar.warning("At least one option must be selected")
 
 # Location
+loc_all_options = sorted(df['company_location'].unique())
 location_options = st.sidebar.multiselect(
     "📍 Location",
-    options=sorted(df['location'].unique()),
-    default=df['location'].unique()
+    options=loc_all_options,
+    default=loc_all_options,
+    key='loc_filter'
 )
+if not location_options:
+    location_options = loc_all_options
+    st.sidebar.warning("At least one option must be selected")
 
-# Minimum Salary in USD (no maximum)
-min_salary_usd = st.sidebar.number_input(
-    "💵 Minimum Salary (USD)",
+# Company Size
+size_all_options = sorted(df['company_size'].unique())
+size_full_options = [company_size_map.get(opt, opt) for opt in size_all_options]
+company_size_selection = st.sidebar.multiselect(
+    "🏭 Organization Size",
+    options=size_full_options,
+    default=size_full_options,
+    key='size_filter'
+)
+company_size_options = [k for k, v in company_size_map.items() if v in company_size_selection]
+if not company_size_options:
+    company_size_options = size_all_options
+    st.sidebar.warning("At least one option must be selected")
+
+# Company Name
+company_all_options = sorted(df['company_name'].unique())
+company_options = st.sidebar.multiselect(
+    "🏢 Company",
+    options=company_all_options,
+    default=company_all_options,
+    key='company_filter'
+)
+if not company_options:
+    company_options = company_all_options
+
+# Minimum Salary
+min_salary = st.sidebar.number_input(
+    f"💵 Minimum Salary",
     min_value=0,
-    max_value=int(df['salary_usd'].max()),
     value=0,
     step=10000,
-    help="Enter minimum salary in USD equivalent"
+    format="%d"
 )
 
 # Skills
 all_skills = set()
-for skills in df['skills']:
-    all_skills.update([s.strip() for s in skills.split(',')])
+if 'required_skills' in df.columns:
+    for skills in df['required_skills'].dropna():
+        all_skills.update([s.strip() for s in str(skills).split(',')])
 
 skills_options = st.sidebar.multiselect(
     "💻 Required Skills",
-    options=sorted(all_skills)
+    options=sorted(all_skills),
+    key='skills_filter'
 )
 
 # Apply filters button
@@ -174,79 +258,78 @@ col1, col2 = st.sidebar.columns(2)
 with col1:
     apply_filters = st.button("🔍 Apply", use_container_width=True)
 with col2:
-    clear_filters = st.button("🔄 Clear", use_container_width=True)
-
-if clear_filters:
-    st.rerun()
+    if st.button("🔄 Clear", use_container_width=True):
+        st.rerun()
 
 # Filter data
 filtered_df = df.copy()
 
-if experience_options:
-    filtered_df = filtered_df[filtered_df['experience_level'].isin(experience_options)]
-
-if work_type_options:
-    filtered_df = filtered_df[filtered_df['work_type'].isin(work_type_options)]
-
-if location_options:
-    filtered_df = filtered_df[filtered_df['location'].isin(location_options)]
-
-filtered_df = filtered_df[filtered_df['salary_usd'] >= min_salary_usd]
+filtered_df = filtered_df[filtered_df['experience_level'].isin(experience_options)]
+filtered_df = filtered_df[filtered_df['employment_type'].isin(employment_options)]
+filtered_df = filtered_df[filtered_df['company_location'].isin(location_options)]
+filtered_df = filtered_df[filtered_df['company_size'].isin(company_size_options)]
+filtered_df = filtered_df[filtered_df['company_name'].isin(company_options)]
+filtered_df = filtered_df[filtered_df['salary_target'] >= min_salary]
 
 if skills_options:
-    filtered_df = filtered_df[filtered_df['skills'].apply(
-        lambda x: any(skill in x for skill in skills_options)
+    filtered_df = filtered_df[filtered_df['required_skills'].apply(
+        lambda x: any(skill in str(x) for skill in skills_options) if pd.notna(x) else False
     )]
-
-# Display results count and stats
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric("📋 Jobs Found", f"{len(filtered_df):,}")
-with col2:
-    if len(filtered_df) > 0:
-        avg_sal = filtered_df['salary_usd'].mean()
-        st.metric("💰 Avg Salary", f"${avg_sal/1000:.0f}K")
-    else:
-        st.metric("💰 Avg Salary", "N/A")
-with col3:
-    if len(filtered_df) > 0:
-        remote_count = (filtered_df['work_type'] == 'Remote').sum()
-        st.metric("🏠 Remote", f"{remote_count}")
-    else:
-        st.metric("🏠 Remote", "0")
-with col4:
-    if len(filtered_df) > 0:
-        hybrid_count = (filtered_df['work_type'] == 'Hybrid').sum()
-        st.metric("🔀 Hybrid", f"{hybrid_count}")
-    else:
-        st.metric("🔀 Hybrid", "0")
-
-st.divider()
 
 # Display table
 if len(filtered_df) > 0:
-    # Format salary display
+    # Mapping for user-friendly values
+    experience_level_map = {
+        'EN': 'Entry',
+        'MI': 'Mid',
+        'SE': 'Senior',
+        'CT': 'Contract',
+        'FL': 'Freelance',
+        'EX': 'Executive', 
+        # Add more if needed
+    }
+    employment_type_map = {
+        'FT': 'Full-Time',
+        'PT': 'Part-Time',
+        'CT': 'Contract',
+        'FL': 'Freelance',
+        # Add more if needed
+    }
+    company_size_map = {
+        'S': 'Small',
+        'M': 'Medium',
+        'L': 'Large',
+        'E': 'Enterprise',
+        # Add more if needed
+    }
+
     display_df = filtered_df.copy()
-    display_df['salary_display'] = display_df.apply(
-        lambda row: f"{row['salary_local']:,.0f} {row['currency']} (${row['salary_usd']:,.0f})", 
-        axis=1
+    display_df['salary_display'] = display_df['salary_target'].apply(
+        lambda x: f"{x:,.0f} {target_currency}"
     )
-    
-    # Select and rename columns for display
+    if 'experience_level' in display_df.columns:
+        display_df['experience_level'] = display_df['experience_level'].map(experience_level_map).fillna(display_df['experience_level'])
+    if 'employment_type' in display_df.columns:
+        display_df['employment_type'] = display_df['employment_type'].map(employment_type_map).fillna(display_df['employment_type'])
+    if 'company_size' in display_df.columns:
+        display_df['company_size'] = display_df['company_size'].map(company_size_map).fillna(display_df['company_size'])
+
     display_columns = {
         'job_title': 'Job Title',
-        'experience_level': 'Experience',
-        'work_type': 'Work Type',
-        'location': 'Location',
+        'company_name': 'Company',
+        'experience_level': 'Career Level',
+        'employment_type': 'Job Type',
+        'company_location': 'Location',
+        'company_size': 'Organization Size',
         'salary_display': 'Salary',
-        'remote_ratio': 'Remote %',
-        'skills': 'Skills',
-        'company': 'Company'
+        'remote_ratio': 'Remote %'
     }
-    
+
+    available_cols = [col for col in display_columns.keys() if col in display_df.columns]
+    display_columns = {col: display_columns[col] for col in available_cols}
+
     st.dataframe(
-        display_df[list(display_columns.keys())].rename(columns=display_columns),
+        display_df[available_cols].rename(columns=display_columns),
         use_container_width=True,
         height=500,
         column_config={
@@ -259,7 +342,6 @@ if len(filtered_df) > 0:
         }
     )
     
-    # Download button
     csv = filtered_df.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="📥 Download Results as CSV",
@@ -270,3 +352,12 @@ if len(filtered_df) > 0:
     )
 else:
     st.warning("⚠️ No jobs match your criteria. Try adjusting the filters.")
+
+st.divider()
+
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: gray; font-size: 0.8rem;'>
+    <p>© 2025 Mohammadreza Hendiani</p>
+</div>
+""", unsafe_allow_html=True)
