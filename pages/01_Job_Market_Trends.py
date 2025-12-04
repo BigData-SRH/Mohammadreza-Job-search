@@ -441,29 +441,6 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# Remote ratio by country
-st.subheader("🗺️ Average Remote Ratio by Country")
-remote_by_country = df.groupby('location')['remote_ratio'].mean().reset_index()
-remote_by_country = remote_by_country.sort_values('remote_ratio', ascending=True)
-
-fig = px.bar(remote_by_country,
-             y='location',
-             x='remote_ratio',
-             orientation='h',
-             labels={'remote_ratio': 'Average Remote Ratio (%)', 'location': 'Country'},
-             color='remote_ratio',
-             color_continuous_scale='RdYlGn')
-fig.update_layout(
-    height=400,
-    plot_bgcolor=theme_colors['paper_bg'],
-    paper_bgcolor=theme_colors['bg'],
-    font=dict(color=theme_colors['text']),
-    xaxis=dict(gridcolor=theme_colors['grid']),
-    yaxis=dict(gridcolor=theme_colors['grid'])
-)
-fig.update_traces(textfont=dict(color='white'))
-st.plotly_chart(fig, use_container_width=True)
-
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray; font-size: 0.8rem;'>
