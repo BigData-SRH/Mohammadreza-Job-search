@@ -428,8 +428,14 @@ with col2:
         job_dist = df['job_title'].value_counts().reset_index()
         job_dist.columns = ['job_title', 'count']
 
+        # Use theme-appropriate color scale
+        if st.session_state.theme == 'dark':
+            color_scale = [[0, '#1e3a8a'], [0.5, '#3b82f6'], [1, '#60a5fa']]  # Dark theme: darker to lighter blue
+        else:
+            color_scale = [[0, '#2563eb'], [0.5, '#1e40af'], [1, '#1e3a8a']]  # Light theme: vibrant to dark blue
+
         fig = px.bar(job_dist, y='job_title', x='count', orientation='h',
-                     color='count', color_continuous_scale='Blues')
+                     color='count', color_continuous_scale=color_scale)
         fig.update_layout(
             height=350, showlegend=False,
             xaxis_title='Number of Jobs', yaxis_title='Job Title',
@@ -532,12 +538,20 @@ with st.spinner("Loading salary comparison..."):
     }).reset_index()
     salary_by_location = salary_by_location.sort_values('salary_target', ascending=True)
 
+    # Use theme-appropriate color scale
+    if st.session_state.theme == 'dark':
+        color_scale = [[0, '#1e3a8a'], [0.5, '#3b82f6'], [1, '#60a5fa']]  # Dark theme: darker to lighter blue
+        text_color = 'white'
+    else:
+        color_scale = [[0, '#2563eb'], [0.5, '#1e40af'], [1, '#1e3a8a']]  # Light theme: vibrant to dark blue
+        text_color = 'white'
+
     fig = go.Figure()
     fig.add_trace(go.Bar(
         y=salary_by_location['location'], x=salary_by_location['salary_target'],
         orientation='h', text=[f"{sal:,.0f}" for sal in salary_by_location['salary_target']],
-        textposition='auto', textfont=dict(color='white'),
-        marker=dict(color=salary_by_location['salary_target'], colorscale='Blues', showscale=False),
+        textposition='auto', textfont=dict(color=text_color),
+        marker=dict(color=salary_by_location['salary_target'], colorscale=color_scale, showscale=False),
         hovertemplate='<b>%{y}</b><br>Converted: %{x:,.0f} ' + target_currency + '<br>Original Currency: %{customdata}<extra></extra>',
         customdata=salary_by_location['currency']
     ))

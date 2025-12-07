@@ -1,6 +1,11 @@
 # Directory
 Data/ai_job_dataset.csv
 Data/archive.zip
+data/
+*.csv
+
+# Kaggle credentials
+kaggle.json
 
 # OS files
 .DS_Store
