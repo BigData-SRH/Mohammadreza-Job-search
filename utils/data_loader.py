@@ -1,13 +1,24 @@
 # utils/data_loader.py
+"""
+Data loader module for securely fetching Kaggle datasets.
+Supports both local development and Streamlit Cloud deployment.
+"""
 import streamlit as st
 import pandas as pd
 import os
 import json
+from pathlib import Path
 
-def download_kaggle_dataset():
+def download_kaggle_dataset(dataset_id='pratyushpuri/global-ai-job-market-trend-2025'):
     """
     Download dataset from Kaggle using API credentials from Streamlit secrets.
     Falls back to local file if already exists.
+
+    Args:
+        dataset_id (str): Kaggle dataset identifier (owner/dataset-name)
+
+    Returns:
+        str: Path to the dataset file, or None if download fails
     """
     dataset_path = 'data/ai_job_dataset.csv'
 
@@ -21,7 +32,7 @@ def download_kaggle_dataset():
     try:
         # Try to use Streamlit secrets (works on Streamlit Cloud)
         if hasattr(st, 'secrets') and 'kaggle' in st.secrets:
-            # Set up kaggle credentials
+            # Set up kaggle credentials from Streamlit secrets
             os.environ['KAGGLE_USERNAME'] = st.secrets['kaggle']['username']
             os.environ['KAGGLE_KEY'] = st.secrets['kaggle']['key']
 
@@ -33,20 +44,44 @@ def download_kaggle_dataset():
             api.authenticate()
 
             # Download the specific dataset
-            # Replace with your actual Kaggle dataset identifier
-            api.dataset_download_files(
-                'pratyushpuri/global-ai-job-market-trend-2025',
-                path='data/',
-                unzip=True
-            )
+            with st.spinner(f'Downloading dataset from Kaggle: {dataset_id}...'):
+                api.dataset_download_files(
+                    dataset_id,
+                    path='data/',
+                    unzip=True
+                )
 
+            st.success("Dataset downloaded successfully!")
             return dataset_path
         else:
-            raise Exception("Kaggle credentials not found in secrets")
+            # Try to use local kaggle.json (for local development)
+            kaggle_json_path = Path.home() / '.kaggle' / 'kaggle.json'
+            if kaggle_json_path.exists():
+                from kaggle.api.kaggle_api_extended import KaggleApi
+                api = KaggleApi()
+                api.authenticate()
+
+                with st.spinner(f'Downloading dataset from Kaggle: {dataset_id}...'):
+                    api.dataset_download_files(
+                        dataset_id,
+                        path='data/',
+                        unzip=True
+                    )
+
+                st.success("Dataset downloaded successfully!")
+                return dataset_path
+            else:
+                raise Exception("Kaggle credentials not found. Please configure secrets or add kaggle.json")
 
     except Exception as e:
         st.error(f"Could not download dataset from Kaggle: {e}")
-        st.info("Please ensure the dataset file is available in the data/ directory")
+        st.info("Please ensure the dataset file is available in the data/ directory or configure Kaggle credentials")
+        st.markdown("""
+        **Setup Instructions:**
+        1. Run `python setup_secrets.py` to configure credentials
+        2. Or manually add kaggle.json to ~/.kaggle/
+        3. Or upload the CSV file directly to data/ directory
+        """)
         return None
 
 @st.cache_data(ttl=3600)

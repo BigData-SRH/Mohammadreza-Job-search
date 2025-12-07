@@ -17,9 +17,9 @@ if 'currency_rates' not in st.session_state:
 if 'last_rate_update' not in st.session_state:
     st.session_state.last_rate_update = None
 
-    # Theme application with sidebar support
-    def apply_theme():
-        if st.session_state.theme == 'dark':
+# Theme application with sidebar support
+def apply_theme():
+    if st.session_state.theme == 'dark':
         st.markdown("""
         <style>
         /* Main app background */
