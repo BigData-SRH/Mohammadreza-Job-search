@@ -240,7 +240,7 @@ contact_col1, contact_col2 = st.columns(2)
 
 with contact_col1:
     st.markdown("**Email**")
-    st.markdown("[mohammad.r.hendiani@gmail.com](mailto:mohammad.r.hendiani@gmail.com)")
+    st.markdown("[man2dev@fedoraproject.org](mailto:man2dev@fedoraproject.org)")
 
     st.markdown("**Website**")
     st.markdown("[hendiani.me](https://hendiani.me)")
