@@ -289,7 +289,6 @@ SOFTWARE.
 
 **Mohammadreza Hendiani**
 
-- Email: [mohammad.r.hendiani@gmail.com](mailto:mohammad.r.hendiani@gmail.com)
 - Website: [hendiani.me](https://hendiani.me)
 - LinkedIn: [mohammadreza-hendiani](https://linkedin.com/in/mohammadreza-hendiani)
 - GitHub: [Man2Dev](https://github.com/Man2Dev)
