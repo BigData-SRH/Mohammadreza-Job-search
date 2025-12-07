@@ -1,5 +1,6 @@
 # Directory
-Data/
+Data/ai_job_dataset.csv
+Data/archive.zip
 
 # OS files
 .DS_Store
