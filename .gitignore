@@ -1,7 +1,6 @@
 # Directory
 Data/archive.zip
 data/
-*.csv
 
 # Kaggle credentials
 kaggle.json
