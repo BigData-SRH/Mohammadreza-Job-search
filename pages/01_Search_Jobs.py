@@ -17,15 +17,69 @@ if 'currency_rates' not in st.session_state:
 if 'last_rate_update' not in st.session_state:
     st.session_state.last_rate_update = None
 
-# Theme application
+# Theme application with sidebar support
 def apply_theme():
     if st.session_state.theme == 'dark':
         st.markdown("""
         <style>
+        /* Main app background */
         .stApp { background-color: #0e1117; color: #fafafa; }
         .main { background-color: #0e1117; }
+
+        /* Sidebar */
+        [data-testid="stSidebar"] { background-color: #262730; }
+        [data-testid="stSidebar"] * { color: #fafafa !important; }
+
+        /* Text elements */
         h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown { color: #fafafa !important; }
         .stTextInput label, .stSelectbox label, .stMultiSelect label, .stNumberInput label { color: #fafafa !important; }
+
+        /* Buttons */
+        .stButton > button { background-color: #262730; color: #fafafa; border: 1px solid #4a4a5a; }
+        .stButton > button:hover { background-color: #3a3a4a; border-color: #6a6a7a; }
+        .stButton > button:disabled { background-color: #1a1a2a; color: #8a8a9a; }
+        .stDownloadButton > button { background-color: #262730; color: #fafafa; border: 1px solid #4a4a5a; }
+        .stDownloadButton > button:hover { background-color: #3a3a4a; }
+
+        /* Expander */
+        .streamlit-expanderHeader { background-color: #262730; color: #fafafa !important; }
+        .streamlit-expanderContent { background-color: #1a1a2a; }
+        [data-testid="stExpander"] { background-color: #262730; border: 1px solid #4a4a5a; }
+        [data-testid="stExpander"] summary { color: #fafafa !important; }
+        [data-testid="stExpander"] svg { fill: #fafafa; }
+
+        /* Selectbox and Multiselect */
+        .stSelectbox > div > div { background-color: #262730; color: #fafafa; }
+        .stMultiSelect > div > div { background-color: #262730; color: #fafafa; }
+        .stSelectbox [data-baseweb="select"] { background-color: #262730; }
+        .stMultiSelect [data-baseweb="select"] { background-color: #262730; }
+        [data-baseweb="select"] > div { background-color: #262730 !important; color: #fafafa !important; }
+        [data-baseweb="popover"] { background-color: #262730 !important; }
+        [data-baseweb="menu"] { background-color: #262730 !important; }
+        [role="listbox"] { background-color: #262730 !important; }
+        [role="option"] { background-color: #262730 !important; color: #fafafa !important; }
+        [role="option"]:hover { background-color: #3a3a4a !important; }
+        .stMultiSelect span { color: #fafafa !important; background-color: #3a3a4a !important; }
+
+        /* Number input */
+        .stNumberInput > div > div > input { background-color: #262730; color: #fafafa; border: 1px solid #4a4a5a; }
+
+        /* Dataframe/Table */
+        .stDataFrame { background-color: #262730; }
+        [data-testid="stDataFrame"] { background-color: #262730; }
+        [data-testid="stDataFrame"] * { color: #fafafa !important; }
+        .stDataFrame iframe { background-color: #262730; }
+
+        /* Metrics */
+        [data-testid="stMetric"] { background-color: #262730; border-color: #4a4a5a; }
+        [data-testid="stMetricValue"] { color: #fafafa !important; }
+        [data-testid="stMetricLabel"] { color: #fafafa !important; }
+
+        /* Divider */
+        hr { border-color: #4a4a5a; }
+
+        /* Caption */
+        .stCaption { color: #a0a0b0 !important; }
         </style>
         """, unsafe_allow_html=True)
     else:
@@ -33,6 +87,7 @@ def apply_theme():
         <style>
         .stApp { background-color: #ffffff; color: #31333F; }
         .main { background-color: #ffffff; }
+        [data-testid="stSidebar"] { background-color: #f0f2f6; }
         h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown { color: #31333F !important; }
         .stTextInput label, .stSelectbox label, .stMultiSelect label, .stNumberInput label { color: #31333F !important; }
         </style>
@@ -77,7 +132,6 @@ def load_data():
         df['posting_date'] = pd.to_datetime(df['posting_date'], errors='coerce')
         df = df.dropna(subset=['salary_usd', 'posting_date'])
 
-        # Add work_type based on remote_ratio (hybrid = between 0% and 100% exclusive)
         def categorize_work_type(ratio):
             if pd.isna(ratio):
                 return 'Unknown'
@@ -98,11 +152,10 @@ def load_data():
         st.error("Dataset file not found at data/ai_job_dataset.csv")
         return None
 
-# Sidebar settings (Display Settings only)
+# Sidebar settings
 with st.sidebar:
     st.markdown("### Display Settings")
 
-    # Theme toggle
     st.markdown("**Theme**")
     theme_col1, theme_col2 = st.columns(2)
     with theme_col1:
@@ -116,7 +169,6 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Currency settings
     st.markdown("**Currency**")
     currency_options = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'INR', 'JPY']
     currency_labels = {
@@ -140,8 +192,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Reset button
-    if st.button("Reset All Settings", use_container_width=True, key="reset_btn"):
+    if st.button("Reset All Settings", use_container_width=True, key="reset_settings_btn"):
         st.session_state.theme = 'light'
         st.session_state.default_currency = 'USD'
         st.cache_data.clear()
@@ -171,137 +222,154 @@ company_size_map = {
     'S': 'Small', 'M': 'Medium', 'L': 'Large', 'E': 'Enterprise'
 }
 
-st.divider()
+# Get all options for filters
+work_type_all = sorted(df['work_type'].unique().tolist())
+exp_all_options = sorted(df['experience_level'].unique().tolist())
+exp_full_options = [experience_level_map.get(opt, opt) for opt in exp_all_options]
+employment_all_options = sorted(df['employment_type'].unique().tolist())
+employment_full_options = [employment_type_map.get(opt, opt) for opt in employment_all_options]
+loc_all_options = sorted(df['company_location'].unique().tolist())
+size_all_options = sorted(df['company_size'].unique().tolist())
+size_full_options = [company_size_map.get(opt, opt) for opt in size_all_options]
+company_all_options = sorted(df['company_name'].unique().tolist())
 
-# FILTERS AT TOP OF PAGE
-st.subheader("Filters")
+all_skills = set()
+if 'required_skills' in df.columns:
+    for skills in df['required_skills'].dropna():
+        all_skills.update([s.strip() for s in str(skills).split(',')])
+all_skills_list = sorted(all_skills)
 
-# Row 1: Work Type, Career Level, Job Type
-filter_row1_col1, filter_row1_col2, filter_row1_col3 = st.columns(3)
+# Initialize filter session states with defaults if not present
+if 'filter_work_type' not in st.session_state:
+    st.session_state.filter_work_type = work_type_all
+if 'filter_experience' not in st.session_state:
+    st.session_state.filter_experience = exp_full_options
+if 'filter_employment' not in st.session_state:
+    st.session_state.filter_employment = employment_full_options
+if 'filter_location' not in st.session_state:
+    st.session_state.filter_location = loc_all_options
+if 'filter_size' not in st.session_state:
+    st.session_state.filter_size = size_full_options
+if 'filter_company' not in st.session_state:
+    st.session_state.filter_company = company_all_options
+if 'filter_min_salary' not in st.session_state:
+    st.session_state.filter_min_salary = 0
+if 'filter_skills' not in st.session_state:
+    st.session_state.filter_skills = []
 
-with filter_row1_col1:
-    work_type_all = sorted(df['work_type'].unique())
-    work_type_options = st.multiselect(
-        "Work Type (Remote/Hybrid/On-site)",
-        options=work_type_all,
-        default=work_type_all,
-        key='work_type_filter'
-    )
-    if not work_type_options:
-        work_type_options = work_type_all
-        st.warning("At least one option must be selected")
+# FILTERS IN EXPANDER - More compact
+with st.expander("Filters", expanded=True):
+    # Row 1
+    col1, col2, col3, col4 = st.columns(4)
 
-with filter_row1_col2:
-    exp_all_options = sorted(df['experience_level'].unique())
-    exp_full_options = [experience_level_map.get(opt, opt) for opt in exp_all_options]
-    experience_selection = st.multiselect(
-        "Career Level",
-        options=exp_full_options,
-        default=exp_full_options,
-        key='exp_filter'
-    )
-    experience_options = [k for k, v in experience_level_map.items() if v in experience_selection]
-    if not experience_options:
-        experience_options = exp_all_options
+    with col1:
+        work_type_options = st.multiselect(
+            "Work Type",
+            options=work_type_all,
+            default=st.session_state.filter_work_type,
+            key='work_type_filter'
+        )
 
-with filter_row1_col3:
-    employment_all_options = sorted(df['employment_type'].unique())
-    employment_full_options = [employment_type_map.get(opt, opt) for opt in employment_all_options]
-    employment_selection = st.multiselect(
-        "Job Type",
-        options=employment_full_options,
-        default=employment_full_options,
-        key='employment_filter'
-    )
-    employment_options = [k for k, v in employment_type_map.items() if v in employment_selection]
-    if not employment_options:
-        employment_options = employment_all_options
+    with col2:
+        experience_selection = st.multiselect(
+            "Career Level",
+            options=exp_full_options,
+            default=st.session_state.filter_experience,
+            key='exp_filter'
+        )
 
-# Row 2: Company Location, Organization Size, Company
-filter_row2_col1, filter_row2_col2, filter_row2_col3 = st.columns(3)
+    with col3:
+        employment_selection = st.multiselect(
+            "Job Type",
+            options=employment_full_options,
+            default=st.session_state.filter_employment,
+            key='employment_filter'
+        )
 
-with filter_row2_col1:
-    loc_all_options = sorted(df['company_location'].unique())
-    location_options = st.multiselect(
-        "Company Location",
-        options=loc_all_options,
-        default=loc_all_options,
-        key='loc_filter',
-        help="Filter by the country where the company is located"
-    )
-    if not location_options:
-        location_options = loc_all_options
+    with col4:
+        location_options = st.multiselect(
+            "Company Location",
+            options=loc_all_options,
+            default=st.session_state.filter_location,
+            key='loc_filter',
+            help="Country where the company is headquartered"
+        )
 
-with filter_row2_col2:
-    size_all_options = sorted(df['company_size'].unique())
-    size_full_options = [company_size_map.get(opt, opt) for opt in size_all_options]
-    company_size_selection = st.multiselect(
-        "Organization Size",
-        options=size_full_options,
-        default=size_full_options,
-        key='size_filter'
-    )
-    company_size_options = [k for k, v in company_size_map.items() if v in company_size_selection]
-    if not company_size_options:
-        company_size_options = size_all_options
+    # Row 2
+    col1, col2, col3, col4 = st.columns(4)
 
-with filter_row2_col3:
-    company_all_options = sorted(df['company_name'].unique())
-    company_options = st.multiselect(
-        "Company",
-        options=company_all_options,
-        default=company_all_options,
-        key='company_filter'
-    )
-    if not company_options:
-        company_options = company_all_options
+    with col1:
+        company_size_selection = st.multiselect(
+            "Organization Size",
+            options=size_full_options,
+            default=st.session_state.filter_size,
+            key='size_filter'
+        )
 
-# Row 3: Minimum Salary, Required Skills
-filter_row3_col1, filter_row3_col2 = st.columns(2)
+    with col2:
+        company_options = st.multiselect(
+            "Company",
+            options=company_all_options,
+            default=st.session_state.filter_company,
+            key='company_filter'
+        )
 
-with filter_row3_col1:
-    min_salary = st.number_input(
-        f"Minimum Salary ({target_currency})",
-        min_value=0,
-        value=0,
-        step=10000,
-        format="%d",
-        help=f"Salaries are displayed in {target_currency}. Original salaries in USD are converted using real-time exchange rates."
-    )
+    with col3:
+        min_salary = st.number_input(
+            f"Min Salary ({target_currency})",
+            min_value=0,
+            value=st.session_state.filter_min_salary,
+            step=10000,
+            format="%d",
+            key='salary_filter'
+        )
 
-with filter_row3_col2:
-    all_skills = set()
-    if 'required_skills' in df.columns:
-        for skills in df['required_skills'].dropna():
-            all_skills.update([s.strip() for s in str(skills).split(',')])
+    with col4:
+        skills_options = st.multiselect(
+            "Required Skills",
+            options=all_skills_list,
+            default=st.session_state.filter_skills,
+            key='skills_filter'
+        )
 
-    skills_options = st.multiselect(
-        "Required Skills",
-        options=sorted(all_skills),
-        key='skills_filter'
-    )
+# Update session state from widget values
+st.session_state.filter_work_type = work_type_options if work_type_options else work_type_all
+st.session_state.filter_experience = experience_selection if experience_selection else exp_full_options
+st.session_state.filter_employment = employment_selection if employment_selection else employment_full_options
+st.session_state.filter_location = location_options if location_options else loc_all_options
+st.session_state.filter_size = company_size_selection if company_size_selection else size_full_options
+st.session_state.filter_company = company_options if company_options else company_all_options
+st.session_state.filter_min_salary = min_salary
+st.session_state.filter_skills = skills_options
 
-# Apply/Clear buttons
-st.markdown("")
-btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 4])
-with btn_col1:
-    apply_filters = st.button("Apply Filters", use_container_width=True, type="primary", key="apply_btn")
-with btn_col2:
-    if st.button("Clear Filters", use_container_width=True, key="clear_btn"):
-        st.rerun()
+# Convert selections back to raw values for filtering
+experience_options = [k for k, v in experience_level_map.items() if v in (experience_selection if experience_selection else exp_full_options)]
+if not experience_options:
+    experience_options = exp_all_options
 
-st.divider()
+employment_options = [k for k, v in employment_type_map.items() if v in (employment_selection if employment_selection else employment_full_options)]
+if not employment_options:
+    employment_options = employment_all_options
+
+company_size_options = [k for k, v in company_size_map.items() if v in (company_size_selection if company_size_selection else size_full_options)]
+if not company_size_options:
+    company_size_options = size_all_options
+
+# Apply filters
+work_type_filter = work_type_options if work_type_options else work_type_all
+location_filter = location_options if location_options else loc_all_options
+company_filter = company_options if company_options else company_all_options
 
 # Filter data
 with st.spinner("Filtering jobs..."):
     filtered_df = df.copy()
 
-    filtered_df = filtered_df[filtered_df['work_type'].isin(work_type_options)]
+    filtered_df = filtered_df[filtered_df['work_type'].isin(work_type_filter)]
     filtered_df = filtered_df[filtered_df['experience_level'].isin(experience_options)]
     filtered_df = filtered_df[filtered_df['employment_type'].isin(employment_options)]
-    filtered_df = filtered_df[filtered_df['company_location'].isin(location_options)]
+    filtered_df = filtered_df[filtered_df['company_location'].isin(location_filter)]
     filtered_df = filtered_df[filtered_df['company_size'].isin(company_size_options)]
-    filtered_df = filtered_df[filtered_df['company_name'].isin(company_options)]
+    filtered_df = filtered_df[filtered_df['company_name'].isin(company_filter)]
     filtered_df = filtered_df[filtered_df['salary_target'] >= min_salary]
 
     if skills_options:
@@ -340,10 +408,10 @@ if len(filtered_df) > 0:
     }
 
     available_cols = [col for col in display_columns.keys() if col in display_df.columns]
-    display_columns = {col: display_columns[col] for col in available_cols}
+    display_columns_filtered = {col: display_columns[col] for col in available_cols}
 
     st.dataframe(
-        display_df[available_cols].rename(columns=display_columns),
+        display_df[available_cols].rename(columns=display_columns_filtered),
         use_container_width=True,
         height=500,
         column_config={
@@ -356,9 +424,8 @@ if len(filtered_df) > 0:
         }
     )
 
-    # Prepare full raw data for download (includes all columns like skills, dates, etc.)
+    # Prepare full raw data for download
     download_df = filtered_df.copy()
-    # Include original columns plus the converted salary for convenience
     download_df['salary_converted'] = download_df['salary_target']
     download_df['converted_currency'] = target_currency
 
@@ -366,7 +433,7 @@ if len(filtered_df) > 0:
 
     st.markdown("---")
     st.markdown("**Download Complete Dataset**")
-    st.caption("The CSV file includes all data fields for the filtered jobs, including fields not shown in the table above such as required_skills, posting_date, salary_usd (original), and salary_converted (in your selected currency).")
+    st.caption("The CSV includes ALL data fields for filtered jobs: required_skills, posting_date, salary_usd (original), salary_converted, and more fields not shown in the table above.")
 
     st.download_button(
         label="Download Filtered Data as CSV (All Fields)",
